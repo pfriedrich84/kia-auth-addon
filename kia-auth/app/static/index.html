@@ -100,8 +100,9 @@
 
   function setVncLink() {
     // noVNC is on a separate port (6080) exposed directly by HA, not through Ingress.
+    // Use resize=off to avoid downscaling the whole desktop (which makes CAPTCHA tiny).
     const host = window.location.hostname;
-    $('vnc-link').href = `http://${host}:6080/vnc.html?autoconnect=true&resize=scale`;
+    $('vnc-link').href = `http://${host}:6080/vnc.html?autoconnect=true&resize=off`;
   }
 
   function show(status) {
