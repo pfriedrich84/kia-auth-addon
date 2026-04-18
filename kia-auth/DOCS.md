@@ -38,6 +38,7 @@ token expires.
 
 Optional: In the add-on configuration, set `novnc_resize_mode` to control noVNC
 scaling (`scale` default, or `remote` / `off` for manual preference).
+You can also set `novnc_url` to fully override the noVNC link target.
 
 ## Security
 

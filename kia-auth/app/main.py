@@ -57,6 +57,7 @@ TOKEN_TTL_SECONDS = 600  # 10 minutes
 OPTIONS_PATH = Path("/data/options.json")
 DEFAULT_NOVNC_RESIZE_MODE = "scale"
 ALLOWED_NOVNC_RESIZE_MODES = {"scale", "remote", "off"}
+DEFAULT_NOVNC_URL = ""
 
 # Watchdog: when user is stuck on login/CAPTCHA for too long, show hints.
 AWAITING_LOGIN_HINT_SECONDS = 180
@@ -72,30 +73,49 @@ logging.basicConfig(
 log = logging.getLogger("kia-auth")
 
 
-def _load_novnc_resize_mode() -> str:
-    """Read noVNC resize mode from /data/options.json with safe fallback."""
+def _load_addon_options() -> tuple[str, str]:
+    """Read add-on options from /data/options.json with safe fallbacks."""
+    resize_mode = DEFAULT_NOVNC_RESIZE_MODE
+    novnc_url = DEFAULT_NOVNC_URL
+
     try:
         options_raw = OPTIONS_PATH.read_text(encoding="utf-8")
         options = json.loads(options_raw)
-        mode = str(options.get("novnc_resize_mode", DEFAULT_NOVNC_RESIZE_MODE)).lower()
-        if mode in ALLOWED_NOVNC_RESIZE_MODES:
-            log.info("Configured noVNC resize mode: %s", mode)
-            return mode
-        log.warning(
-            "Invalid novnc_resize_mode=%r in %s; using default %s",
-            mode,
+
+        configured_mode = str(
+            options.get("novnc_resize_mode", DEFAULT_NOVNC_RESIZE_MODE)
+        ).lower()
+        if configured_mode in ALLOWED_NOVNC_RESIZE_MODES:
+            resize_mode = configured_mode
+        else:
+            log.warning(
+                "Invalid novnc_resize_mode=%r in %s; using default %s",
+                configured_mode,
+                OPTIONS_PATH,
+                DEFAULT_NOVNC_RESIZE_MODE,
+            )
+
+        configured_url = str(options.get("novnc_url", DEFAULT_NOVNC_URL)).strip()
+        if configured_url:
+            novnc_url = configured_url
+
+        log.info("Configured noVNC resize mode: %s", resize_mode)
+        if novnc_url:
+            log.info("Configured noVNC URL override: %s", novnc_url)
+
+    except FileNotFoundError:
+        log.info(
+            "%s not found; using default noVNC settings (mode=%s)",
             OPTIONS_PATH,
             DEFAULT_NOVNC_RESIZE_MODE,
         )
-    except FileNotFoundError:
-        log.info("%s not found; using default noVNC resize mode %s", OPTIONS_PATH, DEFAULT_NOVNC_RESIZE_MODE)
     except Exception:
-        log.exception("Failed to load %s; using default noVNC resize mode", OPTIONS_PATH)
+        log.exception("Failed to load %s; using default noVNC settings", OPTIONS_PATH)
 
-    return DEFAULT_NOVNC_RESIZE_MODE
+    return resize_mode, novnc_url
 
 
-NOVNC_RESIZE_MODE = _load_novnc_resize_mode()
+NOVNC_RESIZE_MODE, NOVNC_URL_OVERRIDE = _load_addon_options()
 
 
 def _redact(token: str) -> str:
@@ -238,7 +258,7 @@ async def _run_auth_flow() -> None:
 # HTTP
 # ----------------------------------------------------------------------------
 
-app = FastAPI(title="Kia Auth", version="0.1.3", docs_url=None, redoc_url=None)
+app = FastAPI(title="Kia Auth", version="0.1.4", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -258,6 +278,7 @@ async def status() -> dict:
         "updated_at": state.updated_at.isoformat(),
         "version": app.version,
         "novnc_resize_mode": NOVNC_RESIZE_MODE,
+        "novnc_url": NOVNC_URL_OVERRIDE,
     }
 
 

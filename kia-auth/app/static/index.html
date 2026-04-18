@@ -100,9 +100,13 @@
     failed: $('failed-actions'),
   };
 
-  function setVncLink(resizeMode = 'scale') {
+  function setVncLink(resizeMode = 'scale', configuredUrl = '') {
     // noVNC is on a separate port (6080) exposed directly by HA, not through Ingress.
-    // resize mode is configurable via add-on options (default: scale).
+    // URL can be overridden via add-on options (novnc_url).
+    if (configuredUrl && configuredUrl.trim()) {
+      $('vnc-link').href = configuredUrl.trim();
+      return;
+    }
     const mode = ['scale', 'remote', 'off'].includes(resizeMode) ? resizeMode : 'scale';
     const host = window.location.hostname;
     $('vnc-link').href = `http://${host}:6080/vnc.html?autoconnect=true&resize=${mode}&reconnect=true`;
@@ -124,7 +128,7 @@
       $('state-name').textContent = s.status.replace('_', ' ');
       $('msg').textContent = s.message;
       $('version').textContent = s.version || '';
-      setVncLink(s.novnc_resize_mode || 'scale');
+      setVncLink(s.novnc_resize_mode || 'scale', s.novnc_url || '');
 
       show(s.status);
 

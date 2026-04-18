@@ -2,6 +2,15 @@
 
 All notable changes to the Kia Auth add-on will be documented in this file.
 
+## 0.1.4 — Unreleased
+
+### Added
+- Add-on option `novnc_url` to fully override the noVNC URL used by the "Open noVNC" button.
+
+### Changed
+- noVNC link now uses `novnc_url` when set, otherwise it falls back to generated
+  `http://<ha-host>:6080/vnc.html?...` URL.
+
 ## 0.1.3 — Unreleased
 
 ### Added

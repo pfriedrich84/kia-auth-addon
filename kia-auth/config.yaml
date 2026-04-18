@@ -1,5 +1,5 @@
 name: Kia Auth
-version: "0.1.3"
+version: "0.1.4"
 slug: kia_auth
 description: One-shot Kia Connect EU token fetcher — solve reCAPTCHA via noVNC, get refresh token.
 url: https://github.com/pfriedrich84/kia-auth-addon
@@ -26,5 +26,7 @@ ports_description:
 
 options:
   novnc_resize_mode: scale
+  novnc_url: ""
 schema:
   novnc_resize_mode: list(scale|remote|off)
+  novnc_url: str?
