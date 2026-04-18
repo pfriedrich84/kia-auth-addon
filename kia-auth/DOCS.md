@@ -38,7 +38,14 @@ token expires.
 
 Optional: In the add-on configuration, set `novnc_resize_mode` to control noVNC
 scaling (`scale` default, or `remote` / `off` for manual preference).
-You can also set `novnc_url` to fully override the noVNC link target.
+
+For local/reverse-proxy setups, set `novnc_ip` to your Home Assistant LAN IP
+(e.g. `192.168.1.50`). The add-on will then open noVNC on
+`http://<novnc_ip>:6080/...`.
+
+If `novnc_ip` is empty, the add-on tries to auto-detect the HA IP from
+Supervisor network info. As a last resort, the UI falls back to the current
+browser host.
 
 ## Security
 

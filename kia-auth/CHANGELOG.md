@@ -2,6 +2,16 @@
 
 All notable changes to the Kia Auth add-on will be documented in this file.
 
+## 0.1.6 — Unreleased
+
+### Added
+- Add-on option `novnc_ip` for local noVNC access (`http://<ip>:6080/...`).
+- Automatic HA IP discovery from Supervisor network info when `novnc_ip` is not set.
+
+### Changed
+- Enabled `hassio_api` so the add-on can query Supervisor for HA network details.
+- `novnc_url` is now generated server-side from `novnc_ip`/auto-discovery and resize mode.
+
 ## 0.1.5 — Unreleased
 
 ### Changed

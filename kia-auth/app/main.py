@@ -16,8 +16,10 @@ Intentionally not included:
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
@@ -57,7 +59,10 @@ TOKEN_TTL_SECONDS = 600  # 10 minutes
 OPTIONS_PATH = Path("/data/options.json")
 DEFAULT_NOVNC_RESIZE_MODE = "scale"
 ALLOWED_NOVNC_RESIZE_MODES = {"scale", "remote", "off"}
-DEFAULT_NOVNC_URL = ""
+DEFAULT_NOVNC_IP = ""
+DEFAULT_NOVNC_URL = ""  # legacy full URL override (kept for backward compatibility)
+
+SUPERVISOR_API = "http://supervisor"
 
 # Watchdog: when user is stuck on login/CAPTCHA for too long, show hints.
 AWAITING_LOGIN_HINT_SECONDS = 180
@@ -73,9 +78,58 @@ logging.basicConfig(
 log = logging.getLogger("kia-auth")
 
 
-def _load_addon_options() -> tuple[str, str]:
+def _normalize_ipv4_address(address: str) -> Optional[str]:
+    """Normalize IPv4 (with or without CIDR) and filter unusable values."""
+    try:
+        ip = (
+            ipaddress.ip_interface(address).ip
+            if "/" in address
+            else ipaddress.ip_address(address)
+        )
+    except ValueError:
+        return None
+
+    if ip.version != 4 or ip.is_loopback or ip.is_link_local:
+        return None
+    return str(ip)
+
+
+def _discover_ha_ip_from_supervisor() -> Optional[str]:
+    """Ask Supervisor for network info and return a usable HA IPv4 if available."""
+    token = os.getenv("SUPERVISOR_TOKEN")
+    if not token:
+        log.info("SUPERVISOR_TOKEN not available; cannot auto-discover HA IP")
+        return None
+
+    headers = {"Authorization": f"Bearer {token}"}
+    try:
+        response = httpx.get(
+            f"{SUPERVISOR_API}/network/info", headers=headers, timeout=5.0
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except Exception:
+        log.exception("Failed to query Supervisor network info for HA IP")
+        return None
+
+    data = payload.get("data", {})
+    interfaces = data.get("interfaces", [])
+    for iface in interfaces:
+        ipv4_info = iface.get("ipv4", {})
+        for address in ipv4_info.get("address", []) or []:
+            ip = _normalize_ipv4_address(str(address))
+            if ip:
+                log.info("Auto-discovered HA IP from Supervisor: %s", ip)
+                return ip
+
+    log.warning("Could not find usable IPv4 in Supervisor network info")
+    return None
+
+
+def _load_addon_options() -> tuple[str, str, str]:
     """Read add-on options from /data/options.json with safe fallbacks."""
     resize_mode = DEFAULT_NOVNC_RESIZE_MODE
+    novnc_ip = DEFAULT_NOVNC_IP
     novnc_url = DEFAULT_NOVNC_URL
 
     try:
@@ -95,13 +149,28 @@ def _load_addon_options() -> tuple[str, str]:
                 DEFAULT_NOVNC_RESIZE_MODE,
             )
 
+        configured_ip = str(options.get("novnc_ip", DEFAULT_NOVNC_IP)).strip()
+        if configured_ip:
+            normalized = _normalize_ipv4_address(configured_ip)
+            if normalized:
+                novnc_ip = normalized
+            else:
+                log.warning(
+                    "Invalid novnc_ip=%r in %s; expected IPv4 address",
+                    configured_ip,
+                    OPTIONS_PATH,
+                )
+
+        # Legacy override support (older add-on versions exposed novnc_url).
         configured_url = str(options.get("novnc_url", DEFAULT_NOVNC_URL)).strip()
         if configured_url:
             novnc_url = configured_url
 
         log.info("Configured noVNC resize mode: %s", resize_mode)
+        if novnc_ip:
+            log.info("Configured noVNC IP override: %s", novnc_ip)
         if novnc_url:
-            log.info("Configured noVNC URL override: %s", novnc_url)
+            log.info("Configured legacy noVNC URL override: %s", novnc_url)
 
     except FileNotFoundError:
         log.info(
@@ -112,10 +181,26 @@ def _load_addon_options() -> tuple[str, str]:
     except Exception:
         log.exception("Failed to load %s; using default noVNC settings", OPTIONS_PATH)
 
-    return resize_mode, novnc_url
+    return resize_mode, novnc_ip, novnc_url
 
 
-NOVNC_RESIZE_MODE, NOVNC_URL_OVERRIDE = _load_addon_options()
+def _build_novnc_url() -> str:
+    """Build noVNC URL from best available source."""
+    if NOVNC_URL_OVERRIDE:
+        return NOVNC_URL_OVERRIDE
+
+    host = NOVNC_IP_OVERRIDE or DISCOVERED_HA_IP
+    if not host:
+        return ""
+
+    return (
+        f"http://{host}:6080/vnc.html?autoconnect=true"
+        f"&resize={NOVNC_RESIZE_MODE}&reconnect=true"
+    )
+
+
+NOVNC_RESIZE_MODE, NOVNC_IP_OVERRIDE, NOVNC_URL_OVERRIDE = _load_addon_options()
+DISCOVERED_HA_IP = _discover_ha_ip_from_supervisor()
 
 
 def _redact(token: str) -> str:
@@ -258,7 +343,7 @@ async def _run_auth_flow() -> None:
 # HTTP
 # ----------------------------------------------------------------------------
 
-app = FastAPI(title="Kia Auth", version="0.1.4", docs_url=None, redoc_url=None)
+app = FastAPI(title="Kia Auth", version="0.1.6", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -278,7 +363,7 @@ async def status() -> dict:
         "updated_at": state.updated_at.isoformat(),
         "version": app.version,
         "novnc_resize_mode": NOVNC_RESIZE_MODE,
-        "novnc_url": NOVNC_URL_OVERRIDE,
+        "novnc_url": _build_novnc_url(),
     }
 
 
