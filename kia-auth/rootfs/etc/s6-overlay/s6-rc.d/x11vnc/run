@@ -2,7 +2,7 @@
 # x11vnc — bridges Xvfb's display :99 to VNC protocol on port 5900.
 # noVNC then wraps this in WebSocket for browser access.
 #
-# Use -clipboards for robust clipboard sync support across x11vnc builds.
+# Keep flags minimal for maximum compatibility across HA base images.
 # Retries for up to 10s in case Xvfb isn't fully ready yet.
 
 bashio::log.info "Waiting for X display :99..."
@@ -19,6 +19,5 @@ exec /usr/bin/x11vnc \
   -nopw \
   -forever \
   -shared \
-  -clipboards \
   -rfbport 5900 \
   -quiet
