@@ -24,15 +24,15 @@ RUN apk add --no-cache \
     && ln -sf /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # Python dependencies
-COPY kia-auth/requirements.txt /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --break-system-packages -r /tmp/requirements.txt \
     && rm /tmp/requirements.txt
 
 # Application code
-COPY kia-auth/app /app
+COPY app /app
 
 # s6-overlay services + any other rootfs overlay files
-COPY kia-auth/rootfs /
+COPY rootfs /
 
 # Ensure service run scripts are executable
 RUN chmod +x /etc/s6-overlay/s6-rc.d/*/run
