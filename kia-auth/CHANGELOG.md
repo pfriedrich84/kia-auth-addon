@@ -2,6 +2,12 @@
 
 All notable changes to the Kia Auth add-on will be documented in this file.
 
+## 0.1.7 — Unreleased
+
+### Fixed
+- noVNC connection reliability: switched x11vnc clipboard flags to `-clipboards`
+  (compatible across builds) to avoid startup failures from unsupported flags.
+
 ## 0.1.6 — Unreleased
 
 ### Added
