@@ -34,6 +34,9 @@ token expires.
 7. Stop the add-on. You won't need it until the token expires (typically weeks
    to months).
 
+Optional: In the add-on configuration, set `novnc_resize_mode` to control noVNC
+scaling (`scale` default, or `remote` / `off` for manual preference).
+
 ## Security
 
 - **Never share the refresh token.** Anyone with it has full access to your

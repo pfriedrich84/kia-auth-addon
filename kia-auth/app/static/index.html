@@ -98,11 +98,12 @@
     failed: $('failed-actions'),
   };
 
-  function setVncLink() {
+  function setVncLink(resizeMode = 'scale') {
     // noVNC is on a separate port (6080) exposed directly by HA, not through Ingress.
-    // Use vnc_lite + resize=remote so the canvas uses the tab space better.
+    // resize mode is configurable via add-on options (default: scale).
+    const mode = ['scale', 'remote', 'off'].includes(resizeMode) ? resizeMode : 'scale';
     const host = window.location.hostname;
-    $('vnc-link').href = `http://${host}:6080/vnc_lite.html?autoconnect=true&resize=remote&reconnect=true`;
+    $('vnc-link').href = `http://${host}:6080/vnc.html?autoconnect=true&resize=${mode}&reconnect=true`;
   }
 
   function show(status) {
@@ -121,6 +122,7 @@
       $('state-name').textContent = s.status.replace('_', ' ');
       $('msg').textContent = s.message;
       $('version').textContent = s.version || '';
+      setVncLink(s.novnc_resize_mode || 'scale');
 
       show(s.status);
 
@@ -156,7 +158,6 @@
     }
   };
 
-  setVncLink();
   refresh();
   setInterval(refresh, 2000);
 </script>

@@ -2,10 +2,14 @@
 
 All notable changes to the Kia Auth add-on will be documented in this file.
 
-## 0.1.1 — Unreleased
+## 0.1.2 — Unreleased
+
+### Added
+- Add-on option `novnc_resize_mode` with values: `scale`, `remote`, `off`.
 
 ### Changed
-- noVNC link now opens `vnc_lite.html` with `resize=remote` for better usability.
+- noVNC link now uses the configured resize mode from add-on options
+  (default remains `scale`).
 - Increased virtual desktop/browser size to a wide landscape layout (2200x1200).
 
 ## 0.1.0 — Unreleased

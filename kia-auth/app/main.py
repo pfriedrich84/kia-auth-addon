@@ -16,8 +16,10 @@ Intentionally not included:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException
@@ -50,6 +52,11 @@ CHROMEDRIVER_BIN = "/usr/bin/chromedriver"
 # account access, so keep the exposure window tight.
 TOKEN_TTL_SECONDS = 600  # 10 minutes
 
+# Add-on options file written by Home Assistant.
+OPTIONS_PATH = Path("/data/options.json")
+DEFAULT_NOVNC_RESIZE_MODE = "scale"
+ALLOWED_NOVNC_RESIZE_MODES = {"scale", "remote", "off"}
+
 # ----------------------------------------------------------------------------
 # Logging
 # ----------------------------------------------------------------------------
@@ -59,6 +66,32 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 log = logging.getLogger("kia-auth")
+
+
+def _load_novnc_resize_mode() -> str:
+    """Read noVNC resize mode from /data/options.json with safe fallback."""
+    try:
+        options_raw = OPTIONS_PATH.read_text(encoding="utf-8")
+        options = json.loads(options_raw)
+        mode = str(options.get("novnc_resize_mode", DEFAULT_NOVNC_RESIZE_MODE)).lower()
+        if mode in ALLOWED_NOVNC_RESIZE_MODES:
+            log.info("Configured noVNC resize mode: %s", mode)
+            return mode
+        log.warning(
+            "Invalid novnc_resize_mode=%r in %s; using default %s",
+            mode,
+            OPTIONS_PATH,
+            DEFAULT_NOVNC_RESIZE_MODE,
+        )
+    except FileNotFoundError:
+        log.info("%s not found; using default noVNC resize mode %s", OPTIONS_PATH, DEFAULT_NOVNC_RESIZE_MODE)
+    except Exception:
+        log.exception("Failed to load %s; using default noVNC resize mode", OPTIONS_PATH)
+
+    return DEFAULT_NOVNC_RESIZE_MODE
+
+
+NOVNC_RESIZE_MODE = _load_novnc_resize_mode()
 
 
 def _redact(token: str) -> str:
@@ -175,7 +208,7 @@ async def _run_auth_flow() -> None:
 # HTTP
 # ----------------------------------------------------------------------------
 
-app = FastAPI(title="Kia Auth", version="0.1.0", docs_url=None, redoc_url=None)
+app = FastAPI(title="Kia Auth", version="0.1.2", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -193,6 +226,7 @@ async def status() -> dict:
         "token": token,
         "updated_at": state.updated_at.isoformat(),
         "version": app.version,
+        "novnc_resize_mode": NOVNC_RESIZE_MODE,
     }
 
 
