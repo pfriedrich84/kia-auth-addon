@@ -107,6 +107,9 @@ def _token_if_valid() -> Optional[str]:
         log.info("Token expired, clearing from memory")
         state.token = None
         state.token_expires_at = None
+        # Keep UI consistent: a completed state without token is misleading.
+        if state.status == "completed":
+            _set("idle", "Token expired. Click Start to begin a new session.")
         return None
     return state.token
 

@@ -14,10 +14,15 @@ All notable changes to the Kia Auth add-on will be documented in this file.
 - Token auto-clears from memory 10 minutes after being obtained
 - Token redaction in logs (first 5 + last 5 chars only)
 
+### Changed
+- Implemented `app/kia_flow.py` by vendoring the upstream Kia Connect EU OAuth
+  flow (Selenium URL polling + token exchange via HTTP API).
+- Token expiry now resets UI state back to `idle` with an explicit "Token
+  expired" message to avoid a stale `completed` screen.
+- Repository metadata/docs URLs now point to
+  `https://github.com/pfriedrich84/kia-auth-addon`.
+
 ### Known limitations
-- `app/kia_flow.py` is a placeholder — upstream
-  [`KiaFetchApiTokens.py`](https://gist.github.com/marvinwankersteen/af92c571881ac76579a037fac4f3a63a)
-  must be vendored in before the add-on can actually produce tokens.
 - noVNC runs without a password. Do not expose port 6080 outside your LAN.
 - If HA is served over HTTPS, the browser may block the HTTP noVNC connection
   as mixed content. Allow mixed content for the HA origin, or access HA over

@@ -6,7 +6,7 @@ Custom add-ons repository for Home Assistant OS.
 
 1. In Home Assistant: **Settings → Add-ons → Add-on Store**
 2. Click the **⋮** (three-dot menu, top right) → **Repositories**
-3. Paste: `https://github.com/pfriedrichsap/kia-auth-addon`
+3. Paste: `https://github.com/pfriedrich84/kia-auth-addon`
 4. Click **Add** → **Close**
 5. The add-ons below appear in the store
 
