@@ -1,0 +1,22 @@
+#!/command/with-contenv bashio
+# x11vnc — bridges Xvfb's display :99 to VNC protocol on port 5900.
+# noVNC then wraps this in WebSocket for browser access.
+#
+# Retries for up to 10s in case Xvfb isn't fully ready yet.
+
+bashio::log.info "Waiting for X display :99..."
+for i in $(seq 1 20); do
+  if [ -S /tmp/.X11-unix/X99 ]; then
+    break
+  fi
+  sleep 0.5
+done
+
+bashio::log.info "Starting x11vnc on port 5900"
+exec /usr/bin/x11vnc \
+  -display :99 \
+  -nopw \
+  -forever \
+  -shared \
+  -rfbport 5900 \
+  -quiet

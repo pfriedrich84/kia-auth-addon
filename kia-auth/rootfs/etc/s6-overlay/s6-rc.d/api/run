@@ -1,0 +1,12 @@
+#!/command/with-contenv bashio
+# FastAPI web UI + Kia auth flow orchestrator.
+# Must run with DISPLAY=:99 so Chromium (spawned by Selenium) uses Xvfb.
+
+bashio::log.info "Starting FastAPI on port 8000 (via HA Ingress)"
+cd /app
+export DISPLAY=:99
+exec /usr/bin/python3 -m uvicorn main:app \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --proxy-headers \
+  --forwarded-allow-ips='*'

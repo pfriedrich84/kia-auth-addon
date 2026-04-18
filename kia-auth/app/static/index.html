@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Kia Auth</title>
+<style>
+  :root { color-scheme: dark; --bg:#0B0B0F; --fg:#e9e9ee; --accent:#E6007E; --mute:#9b9bac; --card:#17171f; --border:#26262f; --ok:#3dd68c; --err:#ff6b6b; --warn:#f5b942; }
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 720px; margin: 0 auto; padding: 1.25rem; background: var(--bg); color: var(--fg); line-height: 1.5; }
+  h1 { color: var(--accent); margin: 0 0 0.25rem; font-size: 1.4rem; }
+  .sub { color: var(--mute); margin: 0 0 1.5rem; font-size: 0.9rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 1rem; }
+  .status-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.4rem; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--mute); flex-shrink: 0; }
+  .dot.idle { background: var(--mute); }
+  .dot.starting, .dot.awaiting_login, .dot.extracting { background: var(--warn); animation: pulse 1.2s ease-in-out infinite; }
+  .dot.completed { background: var(--ok); }
+  .dot.failed { background: var(--err); }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .state-name { font-weight: 600; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.05em; }
+  .msg { color: var(--mute); font-size: 0.92rem; }
+  button { background: var(--accent); color: white; border: none; border-radius: 6px; padding: 0.7rem 1.1rem; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
+  button:hover:not(:disabled) { opacity: 0.88; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.secondary { background: transparent; border: 1px solid var(--border); color: var(--fg); }
+  .btn-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
+  .vnc-link { display: inline-block; padding: 0.7rem 1.1rem; background: var(--card); border: 1px solid var(--accent); color: var(--accent); text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 0.95rem; }
+  .vnc-link:hover { background: rgba(230, 0, 126, 0.1); }
+  .token-box { background: #0d0d12; border: 1px solid var(--border); border-radius: 6px; padding: 0.8rem; margin: 0.8rem 0; font-family: ui-monospace, "SF Mono", Consolas, monospace; font-size: 0.8rem; word-break: break-all; color: var(--ok); }
+  .instructions { font-size: 0.85rem; color: var(--mute); margin: 0.8rem 0 0; }
+  .instructions ol { margin: 0.3rem 0 0; padding-left: 1.2rem; }
+  .instructions li { margin: 0.15rem 0; }
+  .hidden { display: none; }
+  .footer { color: var(--mute); font-size: 0.75rem; margin-top: 1rem; text-align: center; }
+  .footer code { background: var(--card); padding: 0.08em 0.35em; border-radius: 3px; font-size: 0.95em; }
+</style>
+</head>
+<body>
+
+<h1>🚗 Kia Auth</h1>
+<p class="sub">One-shot refresh token fetcher for Kia Connect EU.</p>
+
+<div class="card">
+  <div class="status-row">
+    <span id="dot" class="dot idle"></span>
+    <span id="state-name" class="state-name">Idle</span>
+  </div>
+  <div id="msg" class="msg">Ready. Click Start to begin.</div>
+</div>
+
+<div id="action-area" class="card">
+  <div id="idle-actions">
+    <strong>Step 1:</strong> start a new auth session.
+    <div class="btn-row">
+      <button id="start-btn">Start authentication</button>
+    </div>
+  </div>
+
+  <div id="awaiting-actions" class="hidden">
+    <strong>Step 2:</strong> open noVNC, solve the reCAPTCHA and log in with your Kia credentials.
+    <div class="btn-row">
+      <a id="vnc-link" class="vnc-link" target="_blank" rel="noopener">Open noVNC ↗</a>
+    </div>
+    <p class="instructions">The browser window shown in noVNC is the add-on's internal Chromium. Your login + CAPTCHA happen there. Once you land on the Kia homepage, this UI will detect it automatically.</p>
+  </div>
+
+  <div id="completed-actions" class="hidden">
+    <strong>Step 3:</strong> copy the token and paste it into the <code>kia_uvo</code> integration's <em>password</em> field.
+    <div class="token-box" id="token-value">—</div>
+    <div class="btn-row">
+      <button id="copy-btn">Copy token</button>
+      <button id="reset-btn" class="secondary">Start new session</button>
+    </div>
+    <p class="instructions">Token is cleared from memory automatically after 10 minutes.</p>
+  </div>
+
+  <div id="failed-actions" class="hidden">
+    <div class="btn-row">
+      <button id="retry-btn">Retry</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  kia-auth <span id="version">?</span>
+</div>
+
+<script>
+  // All fetches use relative URLs so they work correctly through HA Ingress.
+  const $ = (id) => document.getElementById(id);
+  const areas = {
+    idle: $('idle-actions'),
+    starting: $('idle-actions'),
+    awaiting_login: $('awaiting-actions'),
+    extracting: $('awaiting-actions'),
+    completed: $('completed-actions'),
+    failed: $('failed-actions'),
+  };
+
+  function setVncLink() {
+    // noVNC is on a separate port (6080) exposed directly by HA, not through Ingress.
+    const host = window.location.hostname;
+    $('vnc-link').href = `http://${host}:6080/vnc.html?autoconnect=true&resize=scale`;
+  }
+
+  function show(status) {
+    Object.values(areas).forEach((el) => el.classList.add('hidden'));
+    const target = areas[status];
+    if (target) target.classList.remove('hidden');
+  }
+
+  async function refresh() {
+    try {
+      const res = await fetch('api/status');
+      const s = await res.json();
+
+      const dot = $('dot');
+      dot.className = 'dot ' + s.status;
+      $('state-name').textContent = s.status.replace('_', ' ');
+      $('msg').textContent = s.message;
+      $('version').textContent = s.version || '';
+
+      show(s.status);
+
+      if (s.status === 'completed' && s.token) {
+        $('token-value').textContent = s.token;
+      }
+    } catch (e) {
+      console.error('Status fetch failed:', e);
+    }
+  }
+
+  async function post(path) {
+    const res = await fetch(path, { method: 'POST' });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      alert('Error: ' + (detail.detail || res.statusText));
+    }
+    refresh();
+  }
+
+  $('start-btn').onclick = () => post('api/start');
+  $('retry-btn').onclick = () => post('api/start');
+  $('reset-btn').onclick = () => post('api/reset');
+
+  $('copy-btn').onclick = async () => {
+    const token = $('token-value').textContent;
+    try {
+      await navigator.clipboard.writeText(token);
+      $('copy-btn').textContent = 'Copied ✓';
+      setTimeout(() => { $('copy-btn').textContent = 'Copy token'; }, 2000);
+    } catch (e) {
+      alert('Copy failed — select the token manually.');
+    }
+  };
+
+  setVncLink();
+  refresh();
+  setInterval(refresh, 2000);
+</script>
+
+</body>
+</html>

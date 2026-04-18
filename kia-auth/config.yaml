@@ -1,0 +1,25 @@
+name: Kia Auth
+version: "0.1.0"
+slug: kia_auth
+description: One-shot Kia Connect EU token fetcher — solve reCAPTCHA via noVNC, get refresh token.
+url: https://github.com/pfriedrichsap/kia-auth-addon
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: manual
+init: false
+hassio_api: false
+homeassistant_api: false
+
+# HA Ingress: FastAPI is served through the HA sidebar (no exposed port needed)
+ingress: true
+ingress_port: 8000
+panel_icon: mdi:car-electric
+panel_title: Kia Auth
+
+# noVNC port is exposed separately in v1 (WebSocket through ingress is v2)
+ports:
+  "6080/tcp": 6080
+ports_description:
+  "6080/tcp": "noVNC web interface — user opens this to solve the reCAPTCHA"

@@ -1,0 +1,9 @@
+#!/command/with-contenv bashio
+# noVNC — serves the noVNC HTML/JS at / and proxies WebSocket to x11vnc:5900.
+# User opens http://<ha-host>:6080 in their browser.
+
+bashio::log.info "Starting noVNC (websockify) on port 6080 → localhost:5900"
+exec /usr/bin/websockify \
+  --web=/usr/share/novnc \
+  6080 \
+  localhost:5900
