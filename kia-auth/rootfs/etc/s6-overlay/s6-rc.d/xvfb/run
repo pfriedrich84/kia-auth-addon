@@ -1,6 +1,6 @@
 #!/command/with-contenv bashio
 # Xvfb — virtual framebuffer. Chromium renders into this, x11vnc scrapes it.
-# Wide landscape virtual desktop so noVNC has enough room for CAPTCHA/login controls.
+# Very wide landscape virtual desktop so noVNC has enough room for CAPTCHA/login controls.
 
-bashio::log.info "Starting Xvfb on display :99 (1800x1000x24)"
-exec /usr/bin/Xvfb :99 -screen 0 1800x1000x24 -nolisten tcp
+bashio::log.info "Starting Xvfb on display :99 (2200x1200x24)"
+exec /usr/bin/Xvfb :99 -screen 0 2200x1200x24 -nolisten tcp

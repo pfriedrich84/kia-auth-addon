@@ -124,9 +124,9 @@ def _build_driver() -> webdriver.Chrome:
     opts = Options()
     opts.binary_location = CHROMIUM_BIN
     opts.add_argument(f"--user-agent={MOBILE_UA}")
-    # Keep Kia's required mobile UA, but use a wide landscape viewport so the
-    # reCAPTCHA/login controls are easier to use over noVNC.
-    opts.add_argument("--window-size=1800,1000")
+    # Keep Kia's required mobile UA, but use a very wide landscape viewport so
+    # the reCAPTCHA/login controls are easier to use over noVNC.
+    opts.add_argument("--window-size=2200,1200")
     # Required when running as root inside a container:
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")
