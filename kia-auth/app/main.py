@@ -124,7 +124,7 @@ def _build_driver() -> webdriver.Chrome:
     opts = Options()
     opts.binary_location = CHROMIUM_BIN
     opts.add_argument(f"--user-agent={MOBILE_UA}")
-    opts.add_argument("--window-size=400,800")
+    opts.add_argument("--window-size=540,1100")
     # Required when running as root inside a container:
     opts.add_argument("--no-sandbox")
     opts.add_argument("--disable-dev-shm-usage")

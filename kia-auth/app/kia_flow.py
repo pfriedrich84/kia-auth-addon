@@ -176,7 +176,8 @@ def run_flow(driver: WebDriver) -> TokenBundle:
     Execute the Kia auth flow against the given Selenium driver.
 
     Args:
-        driver: A Selenium WebDriver configured with Kia's required mobile UA.
+        driver: A Selenium WebDriver configured with Kia's required mobile UA
+                and a mobile-like window size (currently 540x1100).
 
     Returns:
         {"refresh_token": "...", "access_token": "..."}
