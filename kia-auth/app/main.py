@@ -22,6 +22,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -30,7 +31,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 
-from kia_flow import run_flow
+from kia_flow import AUTH_DOMAIN, CLIENT_ID, run_flow
 
 # ----------------------------------------------------------------------------
 # Config
@@ -56,6 +57,9 @@ TOKEN_TTL_SECONDS = 600  # 10 minutes
 OPTIONS_PATH = Path("/data/options.json")
 DEFAULT_NOVNC_RESIZE_MODE = "scale"
 ALLOWED_NOVNC_RESIZE_MODES = {"scale", "remote", "off"}
+
+# Watchdog: when user is stuck on login/CAPTCHA for too long, show hints.
+AWAITING_LOGIN_HINT_SECONDS = 180
 
 # ----------------------------------------------------------------------------
 # Logging
@@ -111,6 +115,7 @@ class State(BaseModel):
     message: str = "Ready. Click Start to begin."
     token: Optional[str] = None
     token_expires_at: Optional[datetime] = None
+    status_since: datetime = datetime.utcnow()
     updated_at: datetime = datetime.utcnow()
 
 
@@ -120,12 +125,15 @@ current_driver: Optional[webdriver.Chrome] = None
 
 
 def _set(status: str, message: str, token: Optional[str] = None) -> None:
+    now = datetime.utcnow()
+    if state.status != status:
+        state.status_since = now
     state.status = status
     state.message = message
-    state.updated_at = datetime.utcnow()
+    state.updated_at = now
     if token is not None:
         state.token = token
-        state.token_expires_at = datetime.utcnow() + timedelta(seconds=TOKEN_TTL_SECONDS)
+        state.token_expires_at = now + timedelta(seconds=TOKEN_TTL_SECONDS)
         log.info(
             "Token obtained: %s (expires in %ds)", _redact(token), TOKEN_TTL_SECONDS
         )
@@ -145,6 +153,28 @@ def _token_if_valid() -> Optional[str]:
             _set("idle", "Token expired. Click Start to begin a new session.")
         return None
     return state.token
+
+
+def _apply_watchdog_hints() -> None:
+    """Show actionable hint if login/CAPTCHA step is taking unusually long."""
+    if state.status != "awaiting_login":
+        return
+
+    elapsed = (datetime.utcnow() - state.status_since).total_seconds()
+    if elapsed < AWAITING_LOGIN_HINT_SECONDS:
+        return
+
+    if state.message.startswith("Still waiting for login"):
+        return
+
+    _set(
+        "awaiting_login",
+        (
+            "Still waiting for login. If you are stuck: open noVNC, make sure the "
+            "CAPTCHA and Kia login are completed in that browser tab, then wait on "
+            "this page. If needed, reset and start a new session."
+        ),
+    )
 
 
 # ----------------------------------------------------------------------------
@@ -208,7 +238,7 @@ async def _run_auth_flow() -> None:
 # HTTP
 # ----------------------------------------------------------------------------
 
-app = FastAPI(title="Kia Auth", version="0.1.2", docs_url=None, redoc_url=None)
+app = FastAPI(title="Kia Auth", version="0.1.3", docs_url=None, redoc_url=None)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -219,6 +249,7 @@ async def index() -> FileResponse:
 
 @app.get("/api/status")
 async def status() -> dict:
+    _apply_watchdog_hints()
     token = _token_if_valid()
     return {
         "status": state.status,
@@ -240,6 +271,57 @@ async def start() -> dict:
     state.token_expires_at = None
     current_task = asyncio.create_task(_run_auth_flow())
     return {"ok": True}
+
+
+@app.post("/api/validate")
+async def validate_token() -> dict:
+    """Validate current refresh token and return token endpoint diagnostics."""
+    refresh_token = _token_if_valid()
+    if not refresh_token:
+        raise HTTPException(status_code=409, detail="No token available to validate")
+
+    data = {
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+        "client_id": CLIENT_ID,
+        "client_secret": "secret",
+    }
+
+    try:
+        response = await asyncio.to_thread(
+            httpx.post,
+            f"{AUTH_DOMAIN}/auth/api/v2/user/oauth2/token",
+            data=data,
+            timeout=30.0,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Validation request failed: {exc}") from exc
+
+    payload = {}
+    try:
+        payload = response.json()
+    except Exception:
+        pass
+
+    if response.status_code != 200:
+        detail = payload.get("error_description") or payload.get("error") or response.text
+        return {
+            "ok": False,
+            "message": f"Token rejected ({response.status_code}): {detail}",
+        }
+
+    new_refresh = payload.get("refresh_token")
+    if new_refresh and isinstance(new_refresh, str) and new_refresh != refresh_token:
+        state.token = new_refresh
+        state.token_expires_at = datetime.utcnow() + timedelta(seconds=TOKEN_TTL_SECONDS)
+        log.info("Validation returned refreshed token: %s", _redact(new_refresh))
+
+    expires_in = payload.get("expires_in")
+    return {
+        "ok": True,
+        "message": "Token is valid.",
+        "expires_in": expires_in,
+    }
 
 
 @app.post("/api/reset")

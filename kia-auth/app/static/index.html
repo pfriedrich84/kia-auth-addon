@@ -70,8 +70,10 @@
     <div class="token-box" id="token-value">—</div>
     <div class="btn-row">
       <button id="copy-btn">Copy token</button>
+      <button id="validate-btn" class="secondary">Validate token</button>
       <button id="reset-btn" class="secondary">Start new session</button>
     </div>
+    <p id="validate-msg" class="instructions hidden"></p>
     <p class="instructions">Token is cleared from memory automatically after 10 minutes.</p>
   </div>
 
@@ -143,9 +145,39 @@
     refresh();
   }
 
+  async function postJson(path) {
+    const res = await fetch(path, { method: 'POST' });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(body.detail || res.statusText || 'Request failed');
+    }
+    return body;
+  }
+
   $('start-btn').onclick = () => post('api/start');
   $('retry-btn').onclick = () => post('api/start');
-  $('reset-btn').onclick = () => post('api/reset');
+  $('reset-btn').onclick = () => {
+    $('validate-msg').classList.add('hidden');
+    $('validate-msg').textContent = '';
+    post('api/reset');
+  };
+
+  $('validate-btn').onclick = async () => {
+    const msg = $('validate-msg');
+    msg.classList.remove('hidden');
+    msg.textContent = 'Validating token...';
+    try {
+      const r = await postJson('api/validate');
+      if (r.ok) {
+        msg.textContent = r.expires_in ? `✅ ${r.message} access_token expires_in=${r.expires_in}s.` : `✅ ${r.message}`;
+      } else {
+        msg.textContent = `❌ ${r.message || 'Token validation failed.'}`;
+      }
+    } catch (e) {
+      msg.textContent = `❌ ${e.message}`;
+    }
+    refresh();
+  };
 
   $('copy-btn').onclick = async () => {
     const token = $('token-value').textContent;

@@ -2,6 +2,15 @@
 
 All notable changes to the Kia Auth add-on will be documented in this file.
 
+## 0.1.3 — Unreleased
+
+### Added
+- "Validate token" button in the UI, backed by `/api/validate`, to check if
+  the generated refresh token is accepted by Kia's token endpoint before pasting
+  into `kia_uvo`.
+- Login watchdog hint: if `awaiting_login` takes too long, UI status message now
+  shows actionable guidance (complete CAPTCHA/login in noVNC or restart session).
+
 ## 0.1.2 — Unreleased
 
 ### Added

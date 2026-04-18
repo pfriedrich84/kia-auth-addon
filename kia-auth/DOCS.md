@@ -29,9 +29,11 @@ token expires.
 4. In the noVNC tab: solve the reCAPTCHA and log in with your Kia credentials.
 5. Once you land on Kia's homepage, return to this tab. The token will appear
    automatically.
-6. Click **Copy token** and paste it into the `kia_uvo` integration's password
+6. (Optional) Click **Validate token** to verify it is accepted by Kia's token
+   endpoint.
+7. Click **Copy token** and paste it into the `kia_uvo` integration's password
    field (Settings → Devices & Services → Kia Connect → Configure).
-7. Stop the add-on. You won't need it until the token expires (typically weeks
+8. Stop the add-on. You won't need it until the token expires (typically weeks
    to months).
 
 Optional: In the add-on configuration, set `novnc_resize_mode` to control noVNC
