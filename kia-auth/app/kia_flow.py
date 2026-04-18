@@ -177,7 +177,8 @@ def run_flow(driver: WebDriver) -> TokenBundle:
 
     Args:
         driver: A Selenium WebDriver configured with Kia's required mobile UA
-                and a mobile-like window size (currently 540x1100).
+                and a larger window size for noVNC usability
+                (currently 1200x1600).
 
     Returns:
         {"refresh_token": "...", "access_token": "..."}
