@@ -2,6 +2,8 @@
 # x11vnc — bridges Xvfb's display :99 to VNC protocol on port 5900.
 # noVNC then wraps this in WebSocket for browser access.
 #
+# Clipboard flags (-clipboard -primary) improve text copy/paste between
+# local browser and the remote Chromium session.
 # Retries for up to 10s in case Xvfb isn't fully ready yet.
 
 bashio::log.info "Waiting for X display :99..."
@@ -18,5 +20,7 @@ exec /usr/bin/x11vnc \
   -nopw \
   -forever \
   -shared \
+  -clipboard \
+  -primary \
   -rfbport 5900 \
   -quiet

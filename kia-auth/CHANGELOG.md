@@ -2,6 +2,12 @@
 
 All notable changes to the Kia Auth add-on will be documented in this file.
 
+## 0.1.5 — Unreleased
+
+### Changed
+- Enabled x11vnc clipboard synchronization flags (`-clipboard -primary`) to improve
+  copy/paste reliability between local browser and the noVNC session.
+
 ## 0.1.4 — Unreleased
 
 ### Added
