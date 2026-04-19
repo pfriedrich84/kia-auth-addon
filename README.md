@@ -1,4 +1,4 @@
-# Paul's Home Assistant Add-ons
+# Paul's KIA-Auth Helper
 
 Custom add-ons repository for Home Assistant OS.
 
